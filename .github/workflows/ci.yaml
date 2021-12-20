@@ -1,0 +1,28 @@
+name: Continuous Integration
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  pep8:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: actions/setup-python@v2.3.1
+        with:
+          python-version: 3.10.0
+      - run: |
+          pip install tox
+          tox -e pep8
+
+  py310:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: actions/setup-python@v2.3.1
+        with:
+          python-version: 3.10.0
+      - run: |
+          pip install tox
+          tox -e py310

@@ -1,0 +1,11 @@
+*.pyc
+.tox
+*.egg-info
+AUTHORS
+cover
+.coverage
+dist
+.eggs
+.pytest_cache
+.mypy_cache
+.git
