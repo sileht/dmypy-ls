@@ -1,6 +1,9 @@
 # dmypy-ls: super fast mypy language server
 
-It leverages mypy.dmypy_server instead of the slow cli interface
+It leverages mypy.dmypy_server instead of the slow cli interface.
+
+First run takes same time as mypy cli, but next are super fast as
+mypy.dmypy_server only reload the changed file.
 
 It supports diagnostics only.
 
