@@ -95,7 +95,6 @@ async def test_did_save(
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
 
-
 @pytest.mark.asyncio
 async def test_did_open(
     server: ServerFixture, fake_document: workspace.Document
@@ -131,7 +130,6 @@ async def test_did_change(
     await dmypy_ls.did_change(server.server, params)
     server.fake_publish_diagnostics.assert_called_once()
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
-
 
     fixed_content = """
 def foo(bar: str) -> int:
