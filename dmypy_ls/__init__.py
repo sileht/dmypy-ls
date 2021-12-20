@@ -19,12 +19,14 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import os
 import argparse
 from contextlib import redirect_stderr
 from contextlib import redirect_stdout
 import io
 import re
 import tempfile
+import time
 import typing
 
 import mypy
@@ -87,6 +89,7 @@ class MypyServer(server.LanguageServer):
                 f.flush()
                 args.append(f.name)
 
+            started_at = time.monotonic()
             stderr = io.StringIO()
             stdout = io.StringIO()
             with redirect_stderr(stderr):
@@ -100,17 +103,24 @@ class MypyServer(server.LanguageServer):
                         header=argparse.SUPPRESS,
                     )
 
-            # Set content of the file instead reading it from the disk
-            # unlike shadow-file this works with the fscache correctly
-            if text_doc.uri.startswith("file://"):
-                if hasattr(self._mypy, "fswatcher"):
-                    self._mypy.fswatcher.update_changed(remove=[filepath], update=[])
-                filepath = text_doc.uri[7:]
-                for source in sources:
-                    if source.path == filepath:
-                        source.text = text_doc.source
+                    # Set content of the file instead reading it from the disk
+                    # unlike shadow-file this works with the fscache correctly
+                    if text_doc.uri.startswith("file://"):
+                        if hasattr(self._mypy, "fswatcher"):
+                            self._mypy.fswatcher.update_changed(remove=[filepath], update=[])
+                        filepath = text_doc.uri[7:]
+                        for source in sources:
+                            if source.path == filepath:
+                                source.text = text_doc.source
 
-            resp = self._mypy.check(sources, is_tty=False, terminal_width=80)
+                    try:
+                        resp = self._mypy.check(sources, is_tty=False, terminal_width=80)
+                    except BaseException:
+                        resp = {"out": "", "err": ""}
+
+            elapsed = time.monotonic() - started_at
+            self.show_message(f"ran mypy in {elapsed}s, stdout: {stdout.getvalue()}, stderr: {stderr.getvalue()}, out={resp['out']}")
+
             lines = [
                 line.strip()
                 for line in resp["err"].split("\n") + resp["out"].split("\n")
@@ -157,4 +167,5 @@ async def did_change(
 
 
 def main() -> None:
+    os.chdir("/")
     ls.start_io()  # type: ignore[no-untyped-call]
