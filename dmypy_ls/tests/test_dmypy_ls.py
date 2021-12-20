@@ -111,3 +111,28 @@ async def test_did_change(
     await dmypy_ls.did_change(server.server, params)
     server.fake_publish_diagnostics.assert_called_once()
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
+
+
+    fixed_content = """
+def foo(bar: str) -> int:
+    return 1
+
+foo("foo")
+"""
+
+    fixed_doc = workspace.Document(fake_document.uri, fixed_content)  # type: ignore[no-untyped-call]
+    server.server.lsp.workspace.get_document = mock.Mock(return_value=fixed_doc)  # type: ignore[assignment]
+
+    params = types.DidChangeTextDocumentParams(
+        contentChanges=[],
+        text_document=types.TextDocumentItem(
+            uri=fixed_doc.uri,
+            language_id="python",
+            version=1,
+            text=fixed_doc._source,
+        ),
+    )
+    server.fake_publish_diagnostics.reset_mock()
+    await dmypy_ls.did_change(server.server, params)
+    server.fake_publish_diagnostics.assert_called_once()
+    assert len(server.fake_publish_diagnostics.call_args[0][1]) == 0

@@ -103,8 +103,10 @@ class MypyServer(server.LanguageServer):
             # Set content of the file instead reading it from the disk
             # unlike shadow-file this works with the fscache correctly
             if text_doc.uri.startswith("file://"):
+                if hasattr(self._mypy, "fswatcher"):
+                    self._mypy.fswatcher.update_changed(remove=[filepath], update=[])
+                filepath = text_doc.uri[7:]
                 for source in sources:
-                    filepath = text_doc.uri[7:]
                     if source.path == filepath:
                         source.text = text_doc.source
 
