@@ -4,6 +4,13 @@ It leverages mypy.dmypy_server instead of the slow cli interface
 
 It supports diagnostics only.
 
+## Status
+
+On works on Open and Save for now
+
+The on Change could be implemented if the mypy FineGrainedBuildManager uses
+BuildSource of the dmypy_server instead of always reread file from disk...
+
 ## Install
 
 ```shell

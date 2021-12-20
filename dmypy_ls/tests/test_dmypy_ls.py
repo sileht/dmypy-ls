@@ -78,6 +78,25 @@ def _assert_diags(diags: typing.List[types.Diagnostic]) -> None:
 
 
 @pytest.mark.asyncio
+async def test_did_save(
+    server: ServerFixture, fake_document: workspace.Document
+) -> None:
+    params = types.DidSaveTextDocumentParams(
+        text_document=types.TextDocumentItem(
+            uri=fake_document.uri,
+            language_id="python",
+            version=1,
+            text=fake_document._source,
+        )
+    )
+
+    await dmypy_ls.did_save(server.server, params)
+    server.fake_publish_diagnostics.assert_called_once()
+    _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
+
+
+
+@pytest.mark.asyncio
 async def test_did_open(
     server: ServerFixture, fake_document: workspace.Document
 ) -> None:
@@ -95,6 +114,7 @@ async def test_did_open(
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
 
+@pytest.mark.skip(reason="did_change disabled")
 @pytest.mark.asyncio
 async def test_did_change(
     server: ServerFixture, fake_document: workspace.Document

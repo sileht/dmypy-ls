@@ -75,6 +75,7 @@ class MypyServer(server.LanguageServer):
         params: typing.Union[
             types.DidOpenTextDocumentParams,
             types.DidChangeTextDocumentParams,
+            types.DidSaveTextDocumentParams,
         ],
     ) -> None:
         text_doc = self.workspace.get_document(params.text_document.uri)
@@ -158,13 +159,20 @@ ls = MypyServer()
 async def did_open(self: MypyServer, params: types.DidOpenTextDocumentParams) -> None:
     await self.validate(params)
 
+# TODO(sileht): mypy FineGrainedBuildManager need first to be fixed to use
+# BuildSource with text passed to dmypy_server.Server instead of rereading the
+# file from disk
+#@ls.feature(methods.TEXT_DOCUMENT_DID_CHANGE)
+#async def did_change(
+#    self: MypyServer, params: types.DidChangeTextDocumentParams
+#) -> None:
+#    await self.validate(params)
 
-@ls.feature(methods.TEXT_DOCUMENT_DID_CHANGE)
-async def did_change(
-    self: MypyServer, params: types.DidChangeTextDocumentParams
+@ls.feature(methods.TEXT_DOCUMENT_DID_SAVE)
+async def did_save(
+    self: MypyServer, params: types.DidSaveTextDocumentParams
 ) -> None:
     await self.validate(params)
-
 
 def main() -> None:
     os.chdir("/")
