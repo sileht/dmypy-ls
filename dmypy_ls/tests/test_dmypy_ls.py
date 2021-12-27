@@ -30,7 +30,7 @@ import dmypy_ls
 
 
 @pytest.fixture
-def fake_document() -> workspace.Document:
+def fake_document() -> typing.Generator[workspace.Document, None, None]:
     with tempfile.NamedTemporaryFile(prefix="dmypy-ls-tests-") as f:
         # ensure the real file is not read
         f.write(b"import os")
@@ -43,6 +43,11 @@ def foo(bar: str) -> int:
 
 foo(5)
         """
+        # FIXME(sileht): Sync the file until we can implement DidChange
+        f.seek(0)
+        f.write(fake_document_content.encode())
+        f.flush()
+
         yield workspace.Document(fake_document_uri, fake_document_content)  # type: ignore[no-untyped-call]
 
 
@@ -127,7 +132,7 @@ async def test_did_change(
             text=fake_document._source,
         ),
     )
-    await dmypy_ls.did_change(server.server, params)
+    await dmypy_ls.did_change(server.server, params)  # type: ignore
     server.fake_publish_diagnostics.assert_called_once()
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
@@ -139,7 +144,7 @@ foo("foo")
 """
 
     fixed_doc = workspace.Document(fake_document.uri, fixed_content)  # type: ignore[no-untyped-call]
-    server.server.lsp.workspace.get_document = mock.Mock(return_value=fixed_doc)  # type: ignore[assignment]
+    server.server.lsp.workspace.get_document = mock.Mock(return_value=fixed_doc)
 
     params = types.DidChangeTextDocumentParams(
         contentChanges=[],
@@ -151,6 +156,56 @@ foo("foo")
         ),
     )
     server.fake_publish_diagnostics.reset_mock()
-    await dmypy_ls.did_change(server.server, params)
+    await dmypy_ls.did_change(server.server, params)  # type: ignore
     server.fake_publish_diagnostics.assert_called_once()
     assert len(server.fake_publish_diagnostics.call_args[0][1]) == 0
+
+
+@pytest.mark.parametrize(
+    "message,expected",
+    [
+        (
+            'foo/login.py:228: error: Unused "type: ignore" comment',
+            dmypy_ls.MypyRegexResult(
+                {
+                    "file": "foo/login.py",
+                    "col": None,
+                    "row": "228",
+                    "message": 'Unused "type: ignore" comment',
+                    "severity": "error",
+                    "code": None,
+                }
+            ),
+        ),
+        (
+            '/tmp/dmypy-ls-tests-o4wqn7yi:3:12: error: Incompatible return value type (got "str", expected "int")  [return-value]',
+            dmypy_ls.MypyRegexResult(
+                {
+                    "file": "/tmp/dmypy-ls-tests-o4wqn7yi",
+                    "col": "12",
+                    "row": "3",
+                    "message": 'Incompatible return value type (got "str", expected "int")',
+                    "severity": "error",
+                    "code": "return-value",
+                }
+            ),
+        ),
+        (
+            '/tmp/dmypy-ls-tests-o4wqn7yi:5:5: error: Argument 1 to "foo" has incompatible type "int"; expected "str"  [arg-type]',
+            dmypy_ls.MypyRegexResult(
+                {
+                    "file": "/tmp/dmypy-ls-tests-o4wqn7yi",
+                    "col": "5",
+                    "row": "5",
+                    "message": 'Argument 1 to "foo" has incompatible type "int"; expected "str"',
+                    "severity": "error",
+                    "code": "arg-type",
+                }
+            ),
+        ),
+    ],
+)
+def test_output_parser(message: str, expected: dmypy_ls.MypyRegexResult) -> None:
+    ret = dmypy_ls.MYPY_OUTPUT_RE.match(message)
+    assert ret is not None
+    assert ret.groupdict() == expected

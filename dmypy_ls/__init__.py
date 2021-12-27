@@ -36,8 +36,28 @@ from pygls.lsp import methods
 from pygls.lsp import types
 
 
+class MypyRegexResult(typing.TypedDict):
+    file: str
+    row: str
+    col: typing.Optional[str]
+    severity: str
+    message: str
+    code: typing.Optional[str]
+
+
 MYPY_OUTPUT_RE = re.compile(
-    r"(?P<file>[^:]+):(?P<row>[-+]?\d+):(?P<col>[-+]?\d+): (?P<severity>[^:]+): (?P<message>.*)(?:  \[(?P<code>[^\]]+)\])?"
+    r"""
+        ^
+        (?P<file>[^:]+):
+        (?P<row>[-+]?\d+):
+        (?:(?P<col>[-+]?\d+):)?
+        [ ]
+        (?P<severity>[^:]+):
+        [ ]
+        (?P<message>.*?)(?:\ \ \[(?P<code>[^\]]+)\])?
+        $
+    """,
+    re.VERBOSE,
 )
 MYPY_SEVERITY = {
     "error": types.DiagnosticSeverity.Error,
@@ -135,12 +155,15 @@ class MypyServer(server.LanguageServer):
                     self.show_message(f"fail to parse mypy result: {line}")
                     self.show_message_log(f"fail to parse mypy result: {line}")
                 else:
-                    data = m.groupdict()
+                    data = typing.cast(MypyRegexResult, m.groupdict())
                     if not text_doc.uri.endswith(data["file"]):
                         continue
 
                     line = int(data["row"])
-                    col = int(data["col"])
+                    if data["col"] is None:
+                        col = 1
+                    else:
+                        col = int(data["col"])
                     d = types.Diagnostic(
                         range=types.Range(
                             start=types.Position(line=line - 1, character=col - 1),
