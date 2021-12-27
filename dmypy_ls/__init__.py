@@ -68,7 +68,7 @@ class MypyServer(server.LanguageServer):
         self._mypy = dmypy_server.Server(options=options, status_file=self._status_file)
 
     def set_debug(self, debug: bool) -> None:
-        self._debug = True
+        self._debug = debug
 
     def __del__(self) -> None:
         self._status_file = None
