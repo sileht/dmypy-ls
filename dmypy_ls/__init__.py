@@ -37,7 +37,7 @@ from pygls.lsp import types
 
 
 MYPY_OUTPUT_RE = re.compile(
-    r"(?P<file>[^:]+):(?P<row>[-+]?\d+):(?P<col>[-+]?\d+): (?P<severity>[^:]+): (?P<message>.*)  \[(?P<code>[^\]]+)\]"
+    r"(?P<file>[^:]+):(?P<row>[-+]?\d+):(?P<col>[-+]?\d+): (?P<severity>[^:]+): (?P<message>.*)(?:  \[(?P<code>[^\]]+)\])?"
 )
 MYPY_SEVERITY = {
     "error": types.DiagnosticSeverity.Error,
