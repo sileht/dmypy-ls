@@ -55,7 +55,6 @@ class MypyServer(server.LanguageServer):
             prefix="dmypy-ls-status-"
         ).name
         self._flags = [
-            "--hide-error-codes",
             "--hide-error-context",
             "--no-color-output",
             "--show-column-numbers",
