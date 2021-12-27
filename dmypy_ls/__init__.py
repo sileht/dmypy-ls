@@ -205,7 +205,8 @@ async def did_save(self: MypyServer, params: types.DidSaveTextDocumentParams) ->
 def main() -> None:
     parser = argparse.ArgumentParser(description="super fast mypy language server")
     parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--chdir", default="/")
     args = parser.parse_args()
     ls.set_debug(args.debug)
-    os.chdir("/")
+    os.chdir(args.chdir)
     ls.start_io()  # type: ignore[no-untyped-call]
