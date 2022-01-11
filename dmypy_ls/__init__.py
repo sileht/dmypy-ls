@@ -126,16 +126,19 @@ class MypyServer(server.LanguageServer):
                         program="pmypy-ls",
                         header=argparse.SUPPRESS,
                     )
+                    crash = False
                     try:
                         resp = self._mypy.check(
                             sources, is_tty=False, terminal_width=80
                         )
                     except BaseException:
+                        crash = True
                         resp = {"out": "", "err": ""}
 
             elapsed = time.monotonic() - started_at
-            if self._debug:
+            if self._debug or crash:
                 self.show_message(f"Ran mypy in {elapsed}s:")
+                self.show_message(f"* crash: {crash}")
                 self.show_message(f"* uri: {text_doc.uri}")
                 self.show_message(f"* args: {args}")
                 self.show_message(f"* stdout: {stdout.getvalue()}")
