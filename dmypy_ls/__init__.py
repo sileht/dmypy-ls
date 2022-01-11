@@ -126,13 +126,13 @@ class MypyServer(server.LanguageServer):
                         program="pmypy-ls",
                         header=argparse.SUPPRESS,
                     )
-                    crash = False
+                    crash = None
                     try:
                         resp = self._mypy.check(
                             sources, is_tty=False, terminal_width=80
                         )
-                    except BaseException:
-                        crash = True
+                    except BaseException as e:
+                        crash = str(e)
                         resp = {"out": "", "err": ""}
 
             elapsed = time.monotonic() - started_at
