@@ -27,6 +27,7 @@ import os
 import re
 import tempfile
 import time
+import traceback
 import typing
 
 import mypy
@@ -121,21 +122,21 @@ class MypyServer(server.LanguageServer):
             stdout = io.StringIO()
             with redirect_stderr(stderr):
                 with redirect_stdout(stdout):
-                    sources, options = mypy.main.process_options(
-                        ["-i"] + list(args),
-                        require_targets=True,
-                        server_options=True,
-                        fscache=self._mypy.fscache,
-                        program="pmypy-ls",
-                        header=argparse.SUPPRESS,
-                    )
                     crash = None
                     try:
+                        sources, options = mypy.main.process_options(
+                            ["-i"] + list(args),
+                            require_targets=True,
+                            server_options=True,
+                            fscache=self._mypy.fscache,
+                            program="pmypy-ls",
+                            header=argparse.SUPPRESS,
+                        )
                         resp = self._mypy.check(
                             sources, is_tty=False, terminal_width=80
                         )
-                    except BaseException as e:
-                        crash = str(e)
+                    except BaseException:
+                        crash = traceback.format_exc()
                         resp = {"out": "", "err": ""}
 
             elapsed = time.monotonic() - started_at
