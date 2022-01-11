@@ -107,6 +107,9 @@ class MypyServer(server.LanguageServer):
             args.extend(self._flags)
             if text_doc.uri.startswith("file://"):
                 filepath = text_doc.uri[7:]
+                if not os.path.exists(filepath):
+                    self.publish_diagnostics(text_doc.uri, [])
+                    return
                 args.append(filepath)
             else:
                 f.write(text_doc.source.encode())
