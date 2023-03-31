@@ -22,9 +22,9 @@ import tempfile
 import typing
 from unittest import mock
 
-from pygls import workspace
-from pygls.lsp import types
 import pytest
+from lsprotocol import types
+from pygls import workspace
 
 import dmypy_ls
 
@@ -48,7 +48,7 @@ foo(5)
         f.write(fake_document_content.encode())
         f.flush()
 
-        yield workspace.Document(fake_document_uri, fake_document_content)  # type: ignore[no-untyped-call]
+        yield workspace.Document(fake_document_uri, fake_document_content)
 
 
 class ServerFixture(typing.NamedTuple):
@@ -60,14 +60,14 @@ class ServerFixture(typing.NamedTuple):
 def server(fake_document: workspace.Document) -> ServerFixture:
     fake_publish_diagnostics = mock.Mock()
     s = dmypy_ls.MypyServer()
-    s.lsp.workspace = workspace.Workspace("", None)  # type: ignore[no-untyped-call,assignment]
-    s.lsp.workspace.get_document = mock.Mock(return_value=fake_document)  # type: ignore[assignment]
+    s.lsp.workspace = workspace.Workspace("", None)  # type: ignore[no-untyped-call]
+    s.lsp.workspace.get_document = mock.Mock(return_value=fake_document)  # type: ignore[method-assign]
     s.lsp.transport = mock.Mock()
-    s.publish_diagnostics = fake_publish_diagnostics  # type: ignore[assignment]
+    s.publish_diagnostics = fake_publish_diagnostics  # type: ignore[method-assign]
     return ServerFixture(s, fake_publish_diagnostics)
 
 
-def _assert_diags(diags: typing.List[types.Diagnostic]) -> None:
+def _assert_diags(diags: list[types.Diagnostic]) -> None:
     assert len(diags) == 2
     assert (
         diags[0].message == 'Incompatible return value type (got "str", expected "int")'
@@ -82,57 +82,50 @@ def _assert_diags(diags: typing.List[types.Diagnostic]) -> None:
     assert diags[1].severity == types.DiagnosticSeverity.Error
 
 
-@pytest.mark.asyncio
-async def test_did_save(
-    server: ServerFixture, fake_document: workspace.Document
+def test_did_save(
+    server: ServerFixture, fake_document: workspace.Document,
 ) -> None:
+    assert fake_document.uri
     params = types.DidSaveTextDocumentParams(
-        text_document=types.TextDocumentItem(
+        text_document=types.TextDocumentIdentifier(
             uri=fake_document.uri,
-            language_id="python",
-            version=1,
-            text=fake_document._source,
-        )
+        ),
     )
 
-    await dmypy_ls.did_save(server.server, params)
+    dmypy_ls.did_save(server.server, params)
     server.fake_publish_diagnostics.assert_called_once()
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
 
-@pytest.mark.asyncio
-async def test_did_open(
-    server: ServerFixture, fake_document: workspace.Document
+def test_did_open(
+    server: ServerFixture, fake_document: workspace.Document,
 ) -> None:
     params = types.DidOpenTextDocumentParams(
         text_document=types.TextDocumentItem(
             uri=fake_document.uri,
             language_id="python",
             version=1,
-            text=fake_document._source,
-        )
+            text=fake_document.source,
+        ),
     )
 
-    await dmypy_ls.did_open(server.server, params)
+    dmypy_ls.did_open(server.server, params)
     server.fake_publish_diagnostics.assert_called_once()
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
 
 @pytest.mark.skip(reason="did_change disabled")
-@pytest.mark.asyncio
-async def test_did_change(
-    server: ServerFixture, fake_document: workspace.Document
+def test_did_change(
+    server: ServerFixture, fake_document: workspace.Document,
 ) -> None:
     params = types.DidChangeTextDocumentParams(
-        contentChanges=[],
-        text_document=types.TextDocumentItem(
-            uri=fake_document.uri,
-            language_id="python",
+        content_changes=[],
+        text_document=types.VersionedTextDocumentIdentifier(
             version=1,
-            text=fake_document._source,
+            uri=fake_document.uri,
         ),
     )
-    await dmypy_ls.did_change(server.server, params)  # type: ignore
+    dmypy_ls.did_change(server.server, params)  # type: ignore[attr-defined]
     server.fake_publish_diagnostics.assert_called_once()
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
@@ -143,20 +136,18 @@ def foo(bar: str) -> int:
 foo("foo")
 """
 
-    fixed_doc = workspace.Document(fake_document.uri, fixed_content)  # type: ignore[no-untyped-call]
+    fixed_doc = workspace.Document(fake_document.uri, fixed_content)
     server.server.lsp.workspace.get_document = mock.Mock(return_value=fixed_doc)
 
     params = types.DidChangeTextDocumentParams(
-        contentChanges=[],
-        text_document=types.TextDocumentItem(
-            uri=fixed_doc.uri,
-            language_id="python",
+        content_changes=[],
+        text_document=types.VersionedTextDocumentIdentifier(
             version=1,
-            text=fixed_doc._source,
+            uri=fixed_doc.uri,
         ),
     )
     server.fake_publish_diagnostics.reset_mock()
-    await dmypy_ls.did_change(server.server, params)  # type: ignore
+    dmypy_ls.did_change(server.server, params)  # type: ignore[attr-defined]
     server.fake_publish_diagnostics.assert_called_once()
     assert len(server.fake_publish_diagnostics.call_args[0][1]) == 0
 
@@ -174,7 +165,7 @@ foo("foo")
                     "message": 'Unused "type: ignore" comment',
                     "severity": "error",
                     "code": None,
-                }
+                },
             ),
         ),
         (
@@ -187,7 +178,7 @@ foo("foo")
                     "message": 'Incompatible return value type (got "str", expected "int")',
                     "severity": "error",
                     "code": "return-value",
-                }
+                },
             ),
         ),
         (
@@ -200,7 +191,7 @@ foo("foo")
                     "message": 'Argument 1 to "foo" has incompatible type "int"; expected "str"',
                     "severity": "error",
                     "code": "arg-type",
-                }
+                },
             ),
         ),
     ],

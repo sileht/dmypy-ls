@@ -20,8 +20,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 import argparse
-from contextlib import redirect_stderr
-from contextlib import redirect_stdout
 import io
 import os
 import re
@@ -29,21 +27,21 @@ import tempfile
 import time
 import traceback
 import typing
+from contextlib import redirect_stderr, redirect_stdout
 
-import mypy
-from mypy import dmypy_server
+from lsprotocol import types
+from mypy import main as mypy_main
+from mypy.fscache import FileSystemCache
 from pygls import server
-from pygls.lsp import methods
-from pygls.lsp import types
 
 
 class MypyRegexResult(typing.TypedDict):
     file: str
     row: str
-    col: typing.Optional[str]
+    col: str|None
     severity: str
     message: str
-    code: typing.Optional[str]
+    code: str|None
 
 
 MYPY_OUTPUT_RE = re.compile(
@@ -69,12 +67,8 @@ MYPY_SEVERITY = {
 
 class MypyServer(server.LanguageServer):
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__("dmypy", "v0.2")
         self._debug = False
-
-        self._status_file: typing.Optional[str] = tempfile.NamedTemporaryFile(
-            prefix="dmypy-ls-status-"
-        ).name
         self._flags = [
             "--hide-error-context",
             "--no-color-output",
@@ -83,24 +77,16 @@ class MypyServer(server.LanguageServer):
             "--no-error-summary",
             "--no-pretty",
         ]
-        _, options = mypy.main.process_options(
-            ["-i"] + self._flags, require_targets=False, server_options=True
-        )
-        self._mypy = dmypy_server.Server(options=options, status_file=self._status_file)
+        self.fscache = FileSystemCache()
 
     def set_debug(self, debug: bool) -> None:
         self._debug = debug
 
-    def __del__(self) -> None:
-        self._status_file = None
-
-    async def validate(
+    def validate(
         self,
-        params: typing.Union[
-            types.DidOpenTextDocumentParams,
-            types.DidChangeTextDocumentParams,
-            types.DidSaveTextDocumentParams,
-        ],
+        params: (types.DidOpenTextDocumentParams|
+            types.DidChangeTextDocumentParams|
+            types.DidSaveTextDocumentParams),
     ) -> None:
         text_doc = self.workspace.get_document(params.text_document.uri)
         with tempfile.NamedTemporaryFile(prefix="dmypy-ls-source-") as f:
@@ -123,21 +109,13 @@ class MypyServer(server.LanguageServer):
             with redirect_stderr(stderr):
                 with redirect_stdout(stdout):
                     crash = None
+                    t0 = time.time()
                     try:
-                        sources, options = mypy.main.process_options(
-                            ["-i"] + list(args),
-                            require_targets=True,
-                            server_options=True,
-                            fscache=self._mypy.fscache,
-                            program="pmypy-ls",
-                            header=argparse.SUPPRESS,
-                        )
-                        resp = self._mypy.check(
-                            sources, is_tty=False, terminal_width=80
-                        )
-                    except BaseException:
+                        self.fscache.flush()
+                        sources, options = mypy_main.process_options(list(args), stdout=stdout, stderr=stderr, fscache=self.fscache)
+                        mypy_main.run_build(sources, options, self.fscache, t0, stdout, stderr)
+                    except BaseException: # noqa [BLE001]
                         crash = traceback.format_exc()
-                        resp = {"out": "", "err": ""}
 
             elapsed = time.monotonic() - started_at
             if self._debug or crash:
@@ -147,16 +125,10 @@ class MypyServer(server.LanguageServer):
                 self.show_message(f"* args: {args}")
                 self.show_message(f"* stdout: {stdout.getvalue()}")
                 self.show_message(f"* stderr: {stderr.getvalue()}")
-                self.show_message(f"* out: {resp['out']}")
-                self.show_message(f"* err: {resp['err']}")
 
-            lines = [
-                line.strip()
-                for line in resp["err"].split("\n") + resp["out"].split("\n")
-                if line.strip()
-            ]
             diagnostics = []
-            for line in lines:
+            self.show_message(f"* stdout: {stdout.getvalue()}")
+            for line in stdout.getvalue().splitlines():
                 m = MYPY_OUTPUT_RE.match(line)
                 if m is None:
                     self.show_message(f"fail to parse mypy result: {line}")
@@ -166,15 +138,15 @@ class MypyServer(server.LanguageServer):
                     if not text_doc.uri.endswith(data["file"]):
                         continue
 
-                    line = int(data["row"])
+                    code_line = int(data["row"])
                     if data["col"] is None:
                         col = 1
                     else:
                         col = int(data["col"])
                     d = types.Diagnostic(
                         range=types.Range(
-                            start=types.Position(line=line - 1, character=col - 1),
-                            end=types.Position(line=line - 1, character=col),
+                            start=types.Position(line=code_line - 1, character=col - 1),
+                            end=types.Position(line=code_line - 1, character=col),
                         ),
                         message=data["message"],
                         code=data["code"],
@@ -189,24 +161,26 @@ class MypyServer(server.LanguageServer):
 ls = MypyServer()
 
 
-@ls.feature(methods.TEXT_DOCUMENT_DID_OPEN)
-async def did_open(self: MypyServer, params: types.DidOpenTextDocumentParams) -> None:
-    await self.validate(params)
+@ls.thread()
+@ls.feature(types.TEXT_DOCUMENT_DID_OPEN)
+def did_open(self: MypyServer, params: types.DidOpenTextDocumentParams) -> None:
+    self.validate(params)
 
 
 # TODO(sileht): mypy FineGrainedBuildManager need first to be fixed to use
 # BuildSource with text passed to dmypy_server.Server instead of rereading the
 # file from disk
-# @ls.feature(methods.TEXT_DOCUMENT_DID_CHANGE)
+# @ls.feature(types.TEXT_DOCUMENT_DID_CHANGE)
 # async def did_change(
 #    self: MypyServer, params: types.DidChangeTextDocumentParams
 # ) -> None:
 #    await self.validate(params)
 
 
-@ls.feature(methods.TEXT_DOCUMENT_DID_SAVE)
-async def did_save(self: MypyServer, params: types.DidSaveTextDocumentParams) -> None:
-    await self.validate(params)
+@ls.thread()
+@ls.feature(types.TEXT_DOCUMENT_DID_SAVE)
+def did_save(self: MypyServer, params: types.DidSaveTextDocumentParams) -> None:
+    self.validate(params)
 
 
 def main() -> None:
@@ -216,4 +190,4 @@ def main() -> None:
     args = parser.parse_args()
     ls.set_debug(args.debug)
     os.chdir(args.chdir)
-    ls.start_io()  # type: ignore[no-untyped-call]
+    ls.start_io()

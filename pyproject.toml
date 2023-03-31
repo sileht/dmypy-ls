@@ -1,0 +1,56 @@
+[tool.poetry]
+name = "dmypy-ls"
+version = "1.12"
+description = "super fast mypy language server"
+classifiers = ["Development Status :: 4 - Beta", "Environment :: Console", "Intended Audience :: Developers", "License :: OSI Approved :: MIT License", "Topic :: Software Development", "Operating System :: POSIX", "Programming Language :: Python", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.9", "Programming Language :: Python :: 3.10"]
+homepage = "https://github.com/sileht/dmypy-ls"
+authors = ["Mehdi Abaakouk <sileht@sileht.net>"]
+
+[tool.poetry.dependencies]
+python = ">=3.7,<4"
+mypy = {optional = true, version = "*"}
+pygls = ">=1.0.1"
+
+[tool.poetry.group.dev.dependencies]
+poethepoet = {extras = ["poetry-plugin"], version = "^0.19.0"}
+ruff = "^0.0.260"
+mypy = "^1.1.1"
+pytest = "^7.2.2"
+
+[tool.poe]
+include = ["poe.toml"]
+
+[tool.ruff]
+select = [
+ "F",
+ "I",
+ "UP",
+ "BLE",
+ "A",
+ "B",
+ "Q",
+ "COM",
+ "C4",
+ "DTZ",
+ "T10",
+ "ISC",
+ "ICN",
+ "G",
+ "RSE",
+ "RET",
+ "TID",
+ "TCH",
+ "ARG",
+ "TRY",
+ "RUF",
+]
+ignore = []
+
+line-length = 88
+target-version = "py311"
+
+[tool.mypy]
+strict = true
+warn_unreachable = true
+files = ["dmypy_ls"]
+show_error_codes = true

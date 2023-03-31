@@ -1,0 +1,15 @@
+[tool.poe.executor]
+type = "poetry"
+
+[tool.poe.tasks.test]
+help = "Run test suite"
+cmd = "pytest"
+
+[tool.poe.tasks.lint]
+help = "Run linters"
+default_item_type = "cmd"
+sequence = [ "ruff check --fix .", "mypy" ]
+
+[tool.poe.tasks.ci]
+help = "Run everything for CI"
+sequence = ["lint", "test"]
