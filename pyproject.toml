@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dmypy-ls"
-version = "1.13"
+version = "1.20"
 description = "super fast mypy language server"
 classifiers = ["Development Status :: 4 - Beta", "Environment :: Console", "Intended Audience :: Developers", "License :: OSI Approved :: MIT License", "Topic :: Software Development", "Operating System :: POSIX", "Programming Language :: Python", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.9", "Programming Language :: Python :: 3.10", "Programming Language :: Python :: 3.11"]
 homepage = "https://github.com/sileht/dmypy-ls"
@@ -59,3 +59,4 @@ strict = true
 warn_unreachable = true
 files = ["dmypy_ls"]
 show_error_codes = true
+exclude = [".venv"]

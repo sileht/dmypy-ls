@@ -18,6 +18,8 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import logging
+import sys
 import tempfile
 import typing
 from unittest import mock
@@ -28,6 +30,11 @@ from pygls import workspace
 
 import dmypy_ls
 
+
+@pytest.fixture(autouse=True, scope="session")
+def setup_logging() -> None:
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    logging.getLogger("pygls").setLevel(logging.ERROR)
 
 @pytest.fixture
 def fake_document() -> typing.Generator[workspace.Document, None, None]:
@@ -55,11 +62,14 @@ class ServerFixture(typing.NamedTuple):
     server: dmypy_ls.MypyServer
     fake_publish_diagnostics: mock.Mock
 
+@pytest.fixture(params=("mypy", "dmypy"))
+def server(fake_document: workspace.Document, request: pytest.FixtureRequest) -> ServerFixture:
+    if request.param == "dmypy":
+        pytest.skip()
 
-@pytest.fixture
-def server(fake_document: workspace.Document) -> ServerFixture:
     fake_publish_diagnostics = mock.Mock()
     s = dmypy_ls.MypyServer()
+    s.setup(False, request.param == "dmypy")
     s.lsp.workspace = workspace.Workspace("", None)  # type: ignore[no-untyped-call]
     s.lsp.workspace.get_document = mock.Mock(return_value=fake_document)  # type: ignore[method-assign]
     s.lsp.transport = mock.Mock()
@@ -114,7 +124,6 @@ def test_did_open(
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
 
-@pytest.mark.skip(reason="did_change disabled")
 def test_did_change(
     server: ServerFixture, fake_document: workspace.Document,
 ) -> None:
@@ -125,7 +134,7 @@ def test_did_change(
             uri=fake_document.uri,
         ),
     )
-    dmypy_ls.did_change(server.server, params)  # type: ignore[attr-defined]
+    dmypy_ls.did_change(server.server, params)
     server.fake_publish_diagnostics.assert_called_once()
     _assert_diags(server.fake_publish_diagnostics.call_args[0][1])
 
@@ -147,7 +156,7 @@ foo("foo")
         ),
     )
     server.fake_publish_diagnostics.reset_mock()
-    dmypy_ls.did_change(server.server, params)  # type: ignore[attr-defined]
+    dmypy_ls.did_change(server.server, params)
     server.fake_publish_diagnostics.assert_called_once()
     assert len(server.fake_publish_diagnostics.call_args[0][1]) == 0
 
