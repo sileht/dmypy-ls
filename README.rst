@@ -1,21 +1,14 @@
-dmypy-ls: super fast mypy language server
-=========================================
+dmypy-ls: mypy language server
+==============================
 
-It leverages mypy.dmypy_server instead of the slow cli interface.
-
-First run takes same time as mypy cli, but next are super fast as
-mypy.dmypy_server only reload the changed file.
+It is a PoC language server using dmypy internal API, not intended to be daily used.
 
 It supports diagnostics only.
 
-Status
-------
+The first run is very slow as dmypy has to build a cache, and dmypy rebuilds the cache for no obvious reason
+when multiple files are opened.
 
-On works on Open and Save for now
-
-The on Change could be implemented if the mypy FineGrainedBuildManager
-uses BuildSource of the dmypy_server instead of always reread file from
-disk…
+These days `mypy` cli is still faster because of the efficient disk cache it has now.
 
 Install
 -------
