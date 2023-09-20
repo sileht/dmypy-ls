@@ -88,19 +88,30 @@ class MypyServer(server.LanguageServer):
         self.is_tty = False
         self.terminal_width=80
 
-    def setup(self, debug: bool, use_dmypy: bool) -> None:
+    def setup(self, debug: bool, use_dmypy: bool = False, virtualenv: str | None = None) -> None:
         self._debug = debug
         self._use_dmypy = use_dmypy
 
         LOG.info("Initializing mypy options")
+
         self.fscache = FileSystemCache()
+
         _, self.options = mypy_main.process_options(
             self._flags, fscache=self.fscache,
-            require_targets=False, # server_options=True,
+            require_targets=False, server_options=self._use_dmypy,
         )
+
+        if virtualenv:
+            # NOTE(sileht): This works only if no mypy plugins are used due to:
+            # https://github.com/python/mypy/issues/12575
+            # The best is to install dmypy-ls in the virtualenv and run it from there
+            self.options.python_executable = f"{virtualenv}/bin/python"
+
         self.finder = SourceFinder(self.fscache, self.options)
 
         if self._use_dmypy:
+            # FIXME(sileht): not ready yet, crash on second check with
+            # https://github.com/python/mypy/issues/14645
             self.server = dmypy_server.Server(
                 options=self.options,
                 status_file="dmypy-ls-not-used-status-file",
@@ -243,9 +254,10 @@ def main() -> None:
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--chdir", default="/")
     parser.add_argument("--dmypy-experimental", action="store_true")
+    parser.add_argument("--virtualenv")
     args = parser.parse_args()
     LOG.info("chdir into %s", args.chdir)
     os.chdir(args.chdir)
-    ls.setup(args.debug, args.dmypy_experimental)
+    ls.setup(args.debug, args.dmypy_experimental, args.virtualenv)
     LOG.info("start io loop")
     ls.start_io()

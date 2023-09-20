@@ -15,7 +15,7 @@ Install
 
 .. code:: shell
 
-   $ pip install --user dmypy-ls
+   $ pipx install dmypy-ls
 
 vim-lspconfig
 -------------
