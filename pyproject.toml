@@ -12,7 +12,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-  dmypy-ls = "dmypy_ls:main"
+dmypy-ls = "dmypy_ls:main"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4"
