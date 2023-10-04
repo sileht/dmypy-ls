@@ -187,7 +187,7 @@ class MypyServer(server.LanguageServer):
             LOG.info(f"Ran mypy in {elapsed}s:")
             LOG.info(f"* uri: {uri}")
             LOG.info(f"* result: {res}")
-        
+
         diagnostics = []
         for line in res["out"].splitlines():
             m = MYPY_OUTPUT_RE.match(line)
@@ -244,8 +244,6 @@ def did_save(self: MypyServer, params: types.DidSaveTextDocumentParams) -> None:
 
 def main() -> None:
     logging.basicConfig(
-        filename="/Users/sileht/pygls.log",
-        filemode="w",
         level=logging.INFO,
         format="%(asctime)s %(levelname)-8s %(message)s",
     )

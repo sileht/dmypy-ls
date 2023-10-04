@@ -7,14 +7,18 @@ homepage = "https://github.com/sileht/dmypy-ls"
 authors = ["Mehdi Abaakouk <sileht@sileht.net>"]
 readme = "README.rst"
 
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-  dmypy-ls = "dmypy_ls:main"
+dmypy-ls = "dmypy_ls:main"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4"
 mypy = {optional = true, version = "*"}
 pygls = ">=1.0.1"
+lsprotocol = ">=2023.0.0a1"
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = {extras = ["poetry-plugin"], version = "^0.19.0"}
