@@ -18,6 +18,7 @@ dmypy-ls = "dmypy_ls:main"
 python = ">=3.9,<4"
 mypy = {optional = true, version = "*"}
 pygls = ">=1.0.1"
+lsprotocol = ">=2023.0.0a1"
 
 [tool.poetry.group.dev.dependencies]
 poethepoet = {extras = ["poetry-plugin"], version = "^0.19.0"}
